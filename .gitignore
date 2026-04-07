@@ -1,1 +1,25 @@
+# Environment
+.env
+
+# Docker volumes
+mongo-data/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Superpowers
 .superpowers/
+
+# Backend binary
+backend/jee-backend
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
+
+# Uploads
+backend/uploads/

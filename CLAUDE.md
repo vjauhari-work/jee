@@ -56,11 +56,18 @@ npm run dev
 
 ## Deploying
 
-The same `docker compose up -d --build` works on a server. Additionally:
+See **DEPLOY.md** for the full free-hosting walkthrough (Oracle Cloud
+Always Free VM + DuckDNS + automatic HTTPS). In short, on any server:
 
-- Terminate HTTPS (e.g. certbot/caddy/cloud load balancer in front of nginx) and set `COOKIE_SECURE=true` so the session cookie is never sent over plain HTTP.
+```bash
+cp .env.example .env   # fill in secrets, DOMAIN, COOKIE_SECURE=true
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+- The prod override adds Caddy, which terminates HTTPS for `$DOMAIN` with automatic Let's Encrypt certificates and fronts nginx.
+- Set `COOKIE_SECURE=true` so the session cookie is never sent over plain HTTP.
 - Do not enable the `debug` profile (mongo-express) in production.
-- MongoDB and the backend are bound to loopback and are not reachable from outside the host; only nginx's port 80 is public.
+- MongoDB and the backend are bound to loopback and are not reachable from outside the host; only Caddy's ports 80/443 are public.
 
 ## Importing Questions from PDF
 

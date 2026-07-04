@@ -58,8 +58,25 @@ func (h *DownloadHandler) TopicPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("%s_%s_%s.pdf", section, subject, topic)
+	filename := fmt.Sprintf("%s_%s_%s.pdf", safeFilePart(section), safeFilePart(subject), safeFilePart(topic))
 	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
-	w.Write(pdfBytes)
+	// gofpdf-generated binary served as application/pdf, not reflected markup
+	w.Write(pdfBytes) // #nosec G705
+}
+
+// safeFilePart restricts a user-supplied value to characters that are
+// safe inside a Content-Disposition filename.
+func safeFilePart(s string) string {
+	out := make([]rune, 0, len(s))
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			out = append(out, r)
+		default:
+			out = append(out, '_')
+		}
+	}
+	return string(out)
 }

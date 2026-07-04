@@ -1,0 +1,11 @@
+.git
+.claude
+docs
+mongo-data
+frontend/node_modules
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+backend/uploads
+backend/jee-backend
+.env
+*.md

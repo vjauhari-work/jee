@@ -20,6 +20,7 @@ backend/jee-backend
 # Frontend build
 frontend/dist/
 frontend/node_modules/
+*.tsbuildinfo
 
 # Uploads
 backend/uploads/

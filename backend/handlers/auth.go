@@ -15,7 +15,8 @@ import (
 )
 
 type AuthHandler struct {
-	JWTSecret string
+	JWTSecret    string
+	CookieSecure bool
 }
 
 type registerRequest struct {
@@ -45,6 +46,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if req.Username == "" || req.Name == "" || req.Email == "" || req.Password == "" {
 		http.Error(w, `{"error":"username, name, email, and password are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// bcrypt only uses the first 72 bytes of input
+	if len(req.Password) < 8 || len(req.Password) > 72 {
+		http.Error(w, `{"error":"password must be between 8 and 72 characters"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -123,11 +130,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	// Secure is deliberately config-driven: COOKIE_SECURE=true in any
+	// HTTPS deployment, false only for plain-HTTP local testing.
+	// nosemgrep: go.lang.security.audit.net.cookie-missing-secure.cookie-missing-secure
+	http.SetCookie(w, &http.Cookie{ // #nosec G124
 		Name:     "token",
 		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   h.CookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   43200, // 12 hours
 	})
@@ -148,11 +159,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	// nosemgrep: go.lang.security.audit.net.cookie-missing-secure.cookie-missing-secure
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- see login; config-driven Secure flag
 		Name:     "token",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   h.CookieSecure,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 

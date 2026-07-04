@@ -40,7 +40,7 @@ func GenerateTopicPDF(section, subject, topic string, questions []models.Questio
 
 	pdf.AddPage()
 	pdf.SetFont("Arial", "B", 16)
-	title := fmt.Sprintf("%s — %s — %s", formatSection(section), strings.Title(subject), topic)
+	title := fmt.Sprintf("%s — %s — %s", formatSection(section), titleCase(subject), topic)
 	pdf.CellFormat(0, 10, title, "", 1, "C", false, 0, "")
 	pdf.Ln(5)
 
@@ -73,6 +73,13 @@ func GenerateTopicPDF(section, subject, topic string, questions []models.Questio
 	}
 
 	return buf.Bytes(), nil
+}
+
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func formatSection(s string) string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/vjauhari-work/jee/backend/config"
 	"github.com/vjauhari-work/jee/backend/db"
@@ -13,6 +14,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.ValidateSecrets(); err != nil {
+		log.Fatalf("Refusing to start: %v", err)
+	}
 
 	// Connect to MongoDB
 	if err := db.Connect(cfg.MongoURI, cfg.MongoDBName); err != nil {
@@ -26,7 +30,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := &handlers.AuthHandler{JWTSecret: cfg.JWTSecret}
+	authHandler := &handlers.AuthHandler{JWTSecret: cfg.JWTSecret, CookieSecure: cfg.CookieSecure}
 	profileHandler := &handlers.ProfileHandler{}
 	questionsHandler := &handlers.QuestionsHandler{}
 	quizHandler := &handlers.QuizHandler{}
@@ -50,9 +54,10 @@ func main() {
 		fmt.Fprintf(w, `{"status":"ok"}`)
 	})
 
-	// Auth (public)
-	mux.HandleFunc("/api/auth/register", authHandler.Register)
-	mux.HandleFunc("/api/auth/login", authHandler.Login)
+	// Auth (public, rate limited against brute force)
+	authLimiter := middleware.NewRateLimiter(10, time.Minute)
+	mux.HandleFunc("/api/auth/register", authLimiter.Wrap(authHandler.Register))
+	mux.HandleFunc("/api/auth/login", authLimiter.Wrap(authHandler.Login))
 	mux.HandleFunc("/api/auth/logout", authHandler.Logout)
 
 	// Profile (authenticated)
@@ -126,11 +131,27 @@ func main() {
 	mux.HandleFunc("/api/admin/questions", adminOnly(adminHandler.CreateQuestion))
 	mux.HandleFunc("/api/admin/answers", adminOnly(adminHandler.UpsertAnswer))
 
+	// Cap request bodies (nginx enforces the same limit in front)
+	capped := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
+		mux.ServeHTTP(w, r)
+	})
+
 	// Wrap with CORS
-	handler := middleware.CORS(mux)
+	handler := middleware.CORS(cfg.AllowedOrigins, capped)
+
+	server := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 
 	log.Printf("Starting server on :%s", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

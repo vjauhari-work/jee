@@ -11,15 +11,38 @@ interface Props {
   correctAnswer?: string;
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderLatex(text: string): string {
-  // Replace $...$ with rendered KaTeX HTML
-  return text.replace(/\$([^$]+)\$/g, (_, math) => {
-    try {
-      return katex.renderToString(math, { throwOnError: false });
-    } catch {
-      return math;
-    }
-  });
+  // Render $...$ segments with KaTeX; HTML-escape everything else so
+  // stored question content can never inject markup.
+  return text
+    .split(/(\$[^$]+\$)/g)
+    .map((seg) => {
+      if (seg.length > 2 && seg.startsWith("$") && seg.endsWith("$")) {
+        try {
+          return katex.renderToString(seg.slice(1, -1), { throwOnError: false });
+        } catch {
+          return escapeHtml(seg.slice(1, -1));
+        }
+      }
+      return escapeHtml(seg);
+    })
+    .join("");
+}
+
+function MathText({ html, style }: { html: string; style?: React.CSSProperties }) {
+  // Safe: `html` always comes from renderLatex, which HTML-escapes all
+  // content except KaTeX's own rendered output.
+  // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+  return <span style={style} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export default function QuestionCard({
@@ -39,10 +62,9 @@ export default function QuestionCard({
         </span>
       </div>
 
-      <div
-        style={styles.questionText}
-        dangerouslySetInnerHTML={{ __html: renderLatex(question.question_text) }}
-      />
+      <div style={styles.questionText}>
+        <MathText html={renderLatex(question.question_text)} />
+      </div>
 
       {question.question_images?.map((img, i) => (
         <img
@@ -76,9 +98,7 @@ export default function QuestionCard({
               }}
             >
               <span style={styles.optionLabel}>{opt.label}</span>
-              <span
-                dangerouslySetInnerHTML={{ __html: renderLatex(opt.text) }}
-              />
+              <MathText html={renderLatex(opt.text)} />
             </button>
           );
         })}

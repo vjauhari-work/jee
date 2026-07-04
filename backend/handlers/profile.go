@@ -122,6 +122,12 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// bcrypt only uses the first 72 bytes of input
+	if len(req.NewPassword) < 8 || len(req.NewPassword) > 72 {
+		http.Error(w, `{"error":"password must be between 8 and 72 characters"}`, http.StatusBadRequest)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 

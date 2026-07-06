@@ -1,0 +1,12 @@
+{
+	# Optional: where Let's Encrypt sends expiry notices.
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+# DOMAIN comes from .env (e.g. myjeeprep.duckdns.org).
+# Caddy obtains and renews the HTTPS certificate automatically and
+# redirects HTTP to HTTPS. For DOMAIN=localhost it issues a local
+# self-signed certificate instead, which is handy for testing.
+{$DOMAIN} {
+	reverse_proxy web:80
+}

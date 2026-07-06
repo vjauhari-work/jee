@@ -1,0 +1,33 @@
+# Production override: HTTPS termination with Caddy.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Requires DOMAIN (and optionally ACME_EMAIL) in .env, plus
+# COOKIE_SECURE=true so session cookies are HTTPS-only.
+# See DEPLOY.md for the full walkthrough.
+
+services:
+  web:
+    # nginx is no longer exposed to the host; Caddy fronts it.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  caddy-data:
+  caddy-config:
